@@ -4,7 +4,6 @@ defmodule PN532.Supervisor do
   """
   use Supervisor
 
-
   def start_link([_config, opts] = args) do
     Supervisor.start_link(__MODULE__, args, opts)
   end
@@ -20,7 +19,6 @@ defmodule PN532.Supervisor do
     children = get_configured_client(config)
     Supervisor.init(children, opts)
   end
-
 
   def get_configured_client(%{target_type: :iso_14443_type_a} = config) do
     [
@@ -38,5 +36,4 @@ defmodule PN532.Supervisor do
   def get_configured_client(_config) do
     []
   end
-
 end
