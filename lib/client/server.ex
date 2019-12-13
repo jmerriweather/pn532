@@ -9,12 +9,10 @@ defmodule PN532.Client.Server do
   @ack_frame <<0x00, 0xFF>>
   @nack_frame <<0xFF, 0x00>>
 
-  @spec open(String.t, [pos_integer]) :: :ok | {:error, :already_open} | {:error, term}
   def open(com_port, uart_speed \\ nil) do
     GenServer.call(__MODULE__, {:open, com_port, uart_speed})
   end
 
-  @spec close() :: :ok | {:error, :not_open}
   def close() do
     GenServer.call(__MODULE__, :close)
   end
@@ -72,7 +70,6 @@ defmodule PN532.Client.Server do
     GenServer.call(__MODULE__, {:in_list_passive_target, max_targets})
   end
 
-  @spec set_serial_baud_rate(pos_integer) :: :ok | {:error, {atom, String.t}} | {:error, :timeout}
   def set_serial_baud_rate(baud_rate) do
     GenServer.call(__MODULE__, {:set_serial_baud_rate, baud_rate})
   end
@@ -89,7 +86,6 @@ defmodule PN532.Client.Server do
     end
   end
 
-  @spec get_baud_rate(number) :: {:ok, binary} | :invalid_baud_rate
   def get_baud_rate(baudrate) do
     case baudrate do
       9_600 -> {:ok, <<0x00>>}

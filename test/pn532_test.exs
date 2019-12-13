@@ -1,5 +1,5 @@
 defmodule Pn532Test do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   @test_uart "/dev/ttyS4"
 
@@ -21,10 +21,6 @@ defmodule Pn532Test do
     assert result == :ok
   end
 
-  test "start PN532 mifare client", %{start_result: result} do
-    assert result == {:ok, _}
-  end
-
   test "get PN532 firmware version", state do
     {:ok, firmware_version} = PN532.Client.Server.get_firmware_version()
     #IO.puts(inspect(firmware_version))
@@ -33,7 +29,7 @@ defmodule Pn532Test do
 
   test "start and stop mifare target detection", state do
     start_result = PN532.Client.Server.start_target_detection()
-
+    Process.sleep(500)
     stop_result = PN532.Client.Server.stop_target_detection()
 
     assert start_result == :ok
