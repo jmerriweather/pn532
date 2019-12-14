@@ -60,13 +60,53 @@ defmodule PN532.Client.Frames do
     end
   end
 
-  def in_auto_poll_frame(poll_nr, period, type) do
+  def in_auto_poll_request_frame(poll_nr, period, type) do
     <<
       0x60,
       poll_nr,
       period,
       type
     >>
+  end
+
+  defmacro in_auto_poll_response(type, message) do
+    quote do
+      <<
+        unquote(type)::binary-size(1),
+        length::integer,
+        unquote(message)::binary-size(length)
+      >>
+    end
+  end
+
+  def in_jump_for_dep_request_frame(act_pass, baud_rate, next, frames) do
+    <<
+      0x56,
+      act_pass,
+      baud_rate,
+      next,
+      frames
+    >>
+  end
+
+  def generate_nfcid3i() do
+    :crypto.strong_rand_bytes(10)
+  end
+
+  defmacro dep_target(status, target_number, nfcid3i, didt, bst, brt, time_out, ppt, geneal_info) do
+    quote do
+      <<
+        unquote(status)::binary-size(1),
+        unquote(target_number)::integer-signed,
+        unquote(nfcid3i)::binary-size(10),
+        unquote(didt)::binary-size(1),
+        unquote(bst)::binary-size(1),
+        unquote(brt)::binary-size(1),
+        unquote(time_out)::binary-size(1),
+        unquote(ppt)::binary-size(1),
+        unquote(geneal_info)::bitstring,
+      >>
+    end
   end
 
   defmacro firmware_version_response(ic_version, version, revision, support) do

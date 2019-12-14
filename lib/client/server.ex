@@ -346,11 +346,20 @@ defmodule PN532.Client.Server do
   def handle_cast({:in_auto_poll, poll_number, period, type}, state = %{uart_pid: uart_pid}) do
     new_power_mode = wakeup(state)
 
-    in_auto_poll_command = in_auto_poll_frame(poll_number, period, type)
+    in_auto_poll_command = in_auto_poll_request_frame(poll_number, period, type)
     write_bytes(uart_pid, in_auto_poll_command)
 
     {:noreply, %{state | power_mode: new_power_mode, polling: true, poll_number: poll_number, poll_period: period, poll_type: type}}
   end
+
+  # def handle_cast(:in_jump_for_dep, state = %{uart_pid: uart_pid}) do
+  #   new_power_mode = wakeup(state)
+
+  #   in_jump_for_dep_command = in_auto_poll_request_frame(poll_number, period, type)
+  #   write_bytes(uart_pid, in_jump_for_dep_command)
+
+  #   {:noreply, %{state | power_mode: new_power_mode}}
+  # end
 
   def handle_cast(:stop_target_detection, state = %{uart_pid: uart_pid, polling: true}) do
     # send ACK frame to cancel last command
@@ -383,7 +392,7 @@ defmodule PN532.Client.Server do
   def handle_cast(:start_target_detection, state) do
     Logger.debug("Starting target detection")
 
-    in_auto_poll(7, 1, 0)
+    in_auto_poll(255, 1, 0)
 
     {:noreply, state}
   end
@@ -411,8 +420,8 @@ defmodule PN532.Client.Server do
     {:noreply, %{new_state | power_mode: new_power_mode, detection_ref: detection_ref}}
   end
 
-  def handle_info({:circuits_uart, com_port, <<0xD5, 0x61, 0, rest::bitstring>>},
-    state = %{handler: handler, polling: polling, poll_number: poll_number, poll_period: period, poll_type: type, current_cards: current_cards}) do
+  def handle_info({:circuits_uart, com_port, <<0xD5, 0x61, 0, _rest::bitstring>>},
+    state = %{handler: handler, polling: polling, poll_number: _poll_number, poll_period: period, poll_type: type, current_cards: current_cards}) do
     Logger.debug("Received in_auto_poll frame on #{inspect com_port} with no cards")
 
     if polling do
@@ -420,15 +429,15 @@ defmodule PN532.Client.Server do
         apply(handler, :handle_event, [:cards_lost, current_cards])
       end
 
-      handle_cast({:in_auto_poll, poll_number, period, type}, %{state | current_cards: nil})
+      handle_cast({:in_auto_poll, 255, period, type}, %{state | current_cards: nil})
     else
       {:noreply, %{state | current_cards: nil}}
     end
   end
 
-  def handle_info({:circuits_uart, com_port, <<0xD5, 0x61, 1, _type::binary-size(1), length::integer, message::bitstring>>},
-    state = %{handler: handler, polling: polling, poll_number: poll_number, poll_period: period, poll_type: type, current_cards: current_cards}) do
-    Logger.debug("Received in_auto_poll frame on #{inspect com_port} with length: #{inspect length}")
+  def handle_info({:circuits_uart, com_port, <<0xD5, 0x61, 1, in_auto_poll_response(_type, message), _padding::bitstring>>},
+    state = %{handler: handler, polling: polling, poll_number: _poll_number, poll_period: period, poll_type: type, current_cards: current_cards}) do
+    Logger.debug("Received in_auto_poll frame on #{inspect com_port} with message: #{inspect message}")
 
     detected = apply(handler, :handle_detection, [1, message])
 
@@ -437,20 +446,19 @@ defmodule PN532.Client.Server do
         if current_cards !== cards do
           apply(handler, :handle_event, [:cards_detected, cards])
         end
-        handle_cast({:in_auto_poll, poll_number, period, type}, %{state | current_cards: cards})
+        handle_cast({:in_auto_poll, 7, period, type}, %{state | current_cards: cards})
       else
         _ ->
-          handle_cast({:in_auto_poll, poll_number, period, type}, %{state | current_cards: nil})
+          handle_cast({:in_auto_poll, 255, period, type}, %{state | current_cards: nil})
       end
     else
       {:noreply, state}
     end
   end
 
-  def handle_info({:circuits_uart, com_port, <<0xD5, 0x61, 2, _type1::binary-size(1), length1::integer, message1::binary-size(length1),
-    _type2::binary-size(1), length2::integer, message2::binary-size(length2), _padding::bitstring>>},
-    state = %{handler: handler, polling: polling, poll_number: poll_number, poll_period: period, poll_type: type, current_cards: current_cards}) do
-    Logger.debug("Received in_auto_poll frame on #{inspect com_port} with two cards with length: #{inspect length1} and #{inspect length2}")
+  def handle_info({:circuits_uart, com_port, <<0xD5, 0x61, 2, in_auto_poll_response(_type1, message1), in_auto_poll_response(_type2, message2), _padding::bitstring>>},
+    state = %{handler: handler, polling: polling, poll_number: _poll_number, poll_period: period, poll_type: type, current_cards: current_cards}) do
+    Logger.debug("Received in_auto_poll frame on #{inspect com_port} with two cards with message: #{inspect message1} and #{inspect message2}")
 
     detected = apply(handler, :handle_detection, [2, message1 <> message2])
 
@@ -459,10 +467,10 @@ defmodule PN532.Client.Server do
         if current_cards !== cards do
           apply(handler, :handle_event, [:cards_detected, cards])
         end
-        handle_cast({:in_auto_poll, poll_number, period, type}, %{state | current_cards: cards})
+        handle_cast({:in_auto_poll, 7, period, type}, %{state | current_cards: cards})
       else
         _ ->
-          handle_cast({:in_auto_poll, poll_number, period, type}, %{state | current_cards: nil})
+          handle_cast({:in_auto_poll, 255, period, type}, %{state | current_cards: nil})
       end
     else
       {:noreply, state}

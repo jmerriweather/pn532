@@ -6,7 +6,7 @@ defmodule PN532.Handler do
   @doc """
   Provides the ability to parse the card data and form a card
   """
-  @callback handle_detection(integer, binary) :: {:ok, term} | {:error, term}
+  @callback handle_detection(integer, binary) :: {:ok, map} | {:ok, [map]} | {:error, term}
   @doc """
   Provides a place to handle when an event happens, such as a card is detected
   """
