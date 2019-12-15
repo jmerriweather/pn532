@@ -93,10 +93,9 @@ defmodule PN532.Client.Frames do
     :crypto.strong_rand_bytes(10)
   end
 
-  defmacro dep_target(status, target_number, nfcid3i, didt, bst, brt, time_out, ppt, geneal_info) do
+  defmacro dep_target(target_number, nfcid3i, didt, bst, brt, time_out, ppt, geneal_info) do
     quote do
       <<
-        unquote(status)::binary-size(1),
         unquote(target_number)::integer-signed,
         unquote(nfcid3i)::binary-size(10),
         unquote(didt)::binary-size(1),
@@ -105,6 +104,18 @@ defmodule PN532.Client.Frames do
         unquote(time_out)::binary-size(1),
         unquote(ppt)::binary-size(1),
         unquote(geneal_info)::bitstring,
+      >>
+    end
+  end
+
+  defmacro dep_target_short(target_number, nfcid3i, didt, bst, brt) do
+    quote do
+      <<
+        unquote(target_number)::integer-signed,
+        unquote(nfcid3i)::binary-size(10),
+        unquote(didt)::binary-size(1),
+        unquote(bst)::binary-size(1),
+        unquote(brt)::binary-size(1)
       >>
     end
   end

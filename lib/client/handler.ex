@@ -43,6 +43,10 @@ defmodule PN532.Handler do
           jewel_target(target_number, sens_res, jewelid) ->
             Logger.debug("Received Jewel card detection with ID: #{inspect Base.encode16(jewelid)}")
             {:ok, %{tg: target_number, sens_res: sens_res, jewelid: jewelid}}
+          dep_target(target_number, nfcid3i, didt, bst, brt, time_out, ppt, geneal_info) ->
+            {:ok, %{tg: target_number, nfcid3i: nfcid3i, didt: didt, bst: bst, brt: brt, time_out: time_out, ppt: ppt, geneal_info: geneal_info}}
+          dep_target_short(target_number, nfcid3i, didt, bst, brt) ->
+            {:ok, %{tg: target_number, nfcid3i: nfcid3i, didt: didt, bst: bst, brt: brt}}
         end
       end
 
@@ -80,9 +84,15 @@ defmodule PN532.Handler do
       def handle_event(:cards_detected, _card = %{nfcid: identifier}) do
         Logger.info("Detected new Mifare card with ID: #{Base.encode16(identifier)}")
       end
+      def handle_event(:cards_detected, _card = %{nfcid3i: identifier}) do
+        Logger.info("Detected new Mifare card with ID: #{Base.encode16(identifier)}")
+      end
 
       @doc false
       def handle_event(:cards_lost, _card = %{nfcid: identifier}) do
+        Logger.info("Lost connection with Mifare card with ID: #{Base.encode16(identifier)}")
+      end
+      def handle_event(:cards_lost, _card = %{nfcid3i: identifier}) do
         Logger.info("Lost connection with Mifare card with ID: #{Base.encode16(identifier)}")
       end
 
