@@ -119,7 +119,7 @@ defmodule PN532.Client.Server do
   end
 
   def init(init_arg) do
-    handler = Map.get(init_arg, :handler, PN532.MifareHandler)
+    handler = Map.get(init_arg, :handler, PN532.DefaultHandler)
     target_type = Map.get(init_arg, :target_type, :iso_14443_type_a)
     uart_speed = Map.get(init_arg, :uart_speed, 115200)
     read_timeout = Map.get(init_arg, :read_timeout, 1500)
@@ -439,7 +439,7 @@ defmodule PN532.Client.Server do
     state = %{handler: handler, polling: polling, poll_number: _poll_number, poll_period: period, poll_type: type, current_cards: current_cards}) do
     Logger.debug("Received in_auto_poll frame on #{inspect com_port} with message: #{inspect message}")
 
-    detected = apply(handler, :handle_detection, [1, message])
+    detected = apply(handler, :handle_detection, [1, [message]])
 
     if polling do
       with {:ok, cards} <- detected do
@@ -460,7 +460,7 @@ defmodule PN532.Client.Server do
     state = %{handler: handler, polling: polling, poll_number: _poll_number, poll_period: period, poll_type: type, current_cards: current_cards}) do
     Logger.debug("Received in_auto_poll frame on #{inspect com_port} with two cards with message: #{inspect message1} and #{inspect message2}")
 
-    detected = apply(handler, :handle_detection, [2, message1 <> message2])
+    detected = apply(handler, :handle_detection, [2, [message1, message2]])
 
     if polling do
       with {:ok, cards} <- detected do
