@@ -1,8 +1,12 @@
 defmodule PN532.Handler do
   @doc """
-  Is called when setting up the connection to the card reader
+  Is called when setting PN532 server
   """
   @callback setup(map) :: :ok
+  @doc """
+  Is called when connected to the card reader
+  """
+  @callback connected(map) :: :ok
   @doc """
   Provides the ability to parse the card data and form a card
   """
@@ -23,6 +27,12 @@ defmodule PN532.Handler do
       @doc false
       def setup(state) do
         Logger.info("PN532.Handler initi")
+      end
+
+      def connected(connect_info) do
+        with %{port: port, firmware_version: version} <- connect_info do
+          Logger.info("Connected on port #{inspect port} with firmware #{inspect version}")
+        end
       end
 
       def handle_detection(_, card_data) do
