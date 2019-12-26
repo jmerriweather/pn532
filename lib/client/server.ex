@@ -17,9 +17,9 @@ defmodule PN532.Client.Server do
     GenServer.call(__MODULE__, :close)
   end
 
-  @spec get_current_card() :: {:ok, map} | {:error, term}
-  def get_current_card() do
-    GenServer.call(__MODULE__, :get_current_card)
+  @spec get_current_cards() :: {:ok, map} | {:error, term}
+  def get_current_cards() do
+    GenServer.call(__MODULE__, :get_current_cards)
   end
 
   def start_target_detection() do
@@ -189,8 +189,8 @@ defmodule PN532.Client.Server do
     {:noreply, state}
   end
 
-  def handle_call(:get_current_card, _, state = %{current_cards: card}) do
-    {:reply, {:ok, card}, state}
+  def handle_call(:get_current_cards, _, state = %{current_cards: cards}) do
+    {:reply, {:ok, cards}, state}
   end
 
   def handle_call({:open, _com_port, _uart_speed}, _, state = %{uart_open: true}) do
