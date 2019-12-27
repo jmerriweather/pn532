@@ -31,7 +31,7 @@ defmodule  PN532.Client.AutoConnector do
     apply(__MODULE__, state, [type, event, data])
   end
 
-  def initialising(:internal, :find_ports, %{uart_port: uart_port} = data) do
+  def initialising(:internal, :find_ports, %{uart_port: uart_port} = data) when not is_nil(uart_port) do
     Logger.info("#{inspect __MODULE__} About to open UART: #{inspect uart_port}")
     PN532.Client.Server.open(uart_port)
 
