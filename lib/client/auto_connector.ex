@@ -20,6 +20,8 @@ defmodule  PN532.Client.AutoConnector do
   def init(config) do
     handler = Map.get(config, :handler, PN532.DefaultHandler)
 
+    Logger.info("#{inspect __MODULE__} Configuration: #{inspect config}")
+
     {:ok, :initialising, Map.put(config, :handler, handler), [{:next_event, :internal, :find_ports}]}
   end
 
@@ -30,6 +32,7 @@ defmodule  PN532.Client.AutoConnector do
   end
 
   def initialising(:internal, :find_ports, %{uart_port: uart_port} = data) do
+    Logger.info("#{inspect __MODULE__} About to open UART: #{inspect uart_port}")
     PN532.Client.Server.open(uart_port)
 
     {:next_state, :connected, data}
