@@ -33,7 +33,23 @@ defmodule  PN532.Client.AutoConnector do
 
   def initialising(:internal, :find_ports, %{uart_port: uart_port} = data) when not is_nil(uart_port) do
     Logger.info("#{inspect __MODULE__} About to open UART: #{inspect uart_port}")
-    PN532.Client.Server.open(uart_port)
+
+    with {:open_port, :ok} <- {:open_port, PN532.Client.Server.open(uart_port)},
+         {:get_firmware, {:ok, version}} when is_map(version) <- {:get_firmware, PN532.Client.Server.get_firmware_version()} do
+
+      connected_info = %{
+        port: uart_port,
+        firmware_version: version
+      }
+      {:next_state, :connected, data, {:next_event, :internal, {:notify_handler, connected_info}}}
+    else
+      {:open_port, error} ->
+        Logger.error("Failed to connect to port #{inspect uart_port}, error: #{inspect error}, trying next port")
+        {:keep_state_and_data, {:state_timeout, 5000, :find_ports}}
+      {:get_firmware, error} ->
+        Logger.error("Failed to get firmware on port #{inspect uart_port}, error: #{inspect error}, trying next port")
+        {:keep_state_and_data, {:state_timeout, 5000, :find_ports}}
+    end
 
     {:next_state, :connected, data}
   end
