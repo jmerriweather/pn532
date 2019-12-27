@@ -20,7 +20,7 @@ defmodule  PN532.Client.AutoConnector do
   def init(config) do
     handler = Map.get(config, :handler, PN532.DefaultHandler)
 
-    Logger.info("#{inspect __MODULE__} Configuration: #{inspect config}")
+    Logger.debug("#{inspect __MODULE__} Configuration: #{inspect config}")
 
     {:ok, :initialising, Map.put(config, :handler, handler), [{:next_event, :internal, :find_ports}]}
   end
@@ -32,7 +32,7 @@ defmodule  PN532.Client.AutoConnector do
   end
 
   def initialising(:internal, :find_ports, %{uart_port: uart_port} = data) when not is_nil(uart_port) do
-    Logger.info("#{inspect __MODULE__} About to open UART: #{inspect uart_port}")
+    Logger.debug("#{inspect __MODULE__} About to open UART: #{inspect uart_port}")
 
     with {:open_port, :ok} <- {:open_port, PN532.Client.Server.open(uart_port)},
          {:get_firmware, {:ok, version}} when is_map(version) <- {:get_firmware, PN532.Client.Server.get_firmware_version()} do
@@ -44,14 +44,12 @@ defmodule  PN532.Client.AutoConnector do
       {:next_state, :connected, data, {:next_event, :internal, {:notify_handler, connected_info}}}
     else
       {:open_port, error} ->
-        Logger.error("Failed to connect to port #{inspect uart_port}, error: #{inspect error}, trying next port")
+        Logger.error("Failed to connect to port #{inspect uart_port}, error: #{inspect error}, trying again in 5 seconds")
         {:keep_state_and_data, {:state_timeout, 5000, :find_ports}}
       {:get_firmware, error} ->
-        Logger.error("Failed to get firmware on port #{inspect uart_port}, error: #{inspect error}, trying next port")
+        Logger.error("Failed to get firmware on port #{inspect uart_port}, error: #{inspect error}, trying again in 5 seconds")
         {:keep_state_and_data, {:state_timeout, 5000, :find_ports}}
     end
-
-    {:next_state, :connected, data}
   end
 
   def initialising(:internal, :find_ports, data) do
@@ -92,6 +90,7 @@ defmodule  PN532.Client.AutoConnector do
   end
 
   def connected(:internal, {:notify_handler, connected_info}, %{handler: handler}) do
+    Logger.debug("#{inspect __MODULE__} About to Notify handler #{inspect handler} about #{inspect connected_info}")
     apply(handler, :connected, [connected_info])
     :keep_state_and_data
   end
