@@ -1,4 +1,4 @@
-defmodule PN532.Client.Frames do
+defmodule PN532.Connection.Frames do
   use Bitwise
   require Logger
 

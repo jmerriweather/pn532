@@ -28,7 +28,7 @@ defmodule PN532.Supervisor do
       },
       %{
         id: config.target_type,
-        start: {PN532.Client.Server, :start_link, [config]}
+        start: {PN532.Client, :start_link, [config]}
       },
       {PN532.Client.AutoConnector, config}
     ]

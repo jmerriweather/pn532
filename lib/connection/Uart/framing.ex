@@ -1,7 +1,7 @@
-defmodule PN532.Client.Framing do
+defmodule PN532.Connection.Uart.Framing do
   @behaviour Circuits.UART.Framing
-  import PN532.Client.Frames
-  require PN532.Client.Frames
+  import PN532.Connection.Frames
+  require PN532.Connection.Frames
   require Logger
 
   use Bitwise

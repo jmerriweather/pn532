@@ -21,8 +21,8 @@ defmodule PN532.Handler do
     quote location: :keep do
       @behaviour PN532.Handler
       require Logger
-      require PN532.Client.Frames
-      import PN532.Client.Frames
+      require PN532.Connection.Frames
+      import PN532.Connection.Frames
 
       @doc false
       def setup(state) do
@@ -128,3 +128,4 @@ defmodule PN532.Handler do
     end
   end
 end
+

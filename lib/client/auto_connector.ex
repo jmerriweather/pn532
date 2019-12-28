@@ -3,7 +3,7 @@ defmodule  PN532.Client.AutoConnector do
   require Logger
 
   def start_link(init_args) do
-    :gen_statem.start(__MODULE__, init_args, [])
+    :gen_statem.start_link({:local, __MODULE__}, __MODULE__, init_args, [])
   end
 
   def child_spec(init_args) do
@@ -25,6 +25,14 @@ defmodule  PN532.Client.AutoConnector do
     {:ok, :initialising, Map.put(config, :handler, handler), [{:next_event, :internal, :find_ports}]}
   end
 
+  def get_state() do
+    :gen_statem.call(__MODULE__, :get_state)
+  end
+
+  def handle_event({:call, from}, :get_state, state, _data) do
+    {:keep_state_and_data, [{:reply, from, state}]}
+  end
+
   def handle_event(type, event, state, data) do
     Logger.info("State: #{inspect(type)}, #{inspect(event)}, #{inspect(state)}")
 
@@ -34,8 +42,8 @@ defmodule  PN532.Client.AutoConnector do
   def initialising(:internal, :find_ports, %{uart_port: uart_port} = data) when not is_nil(uart_port) do
     Logger.debug("#{inspect __MODULE__} About to open UART: #{inspect uart_port}")
 
-    with {:open_port, :ok} <- {:open_port, PN532.Client.Server.open(uart_port)},
-         {:get_firmware, {:ok, version}} when is_map(version) <- {:get_firmware, PN532.Client.Server.get_firmware_version()} do
+    with {:open_port, :ok} <- {:open_port, PN532.Client.open(uart_port)},
+         {:get_firmware, {:ok, version}} when is_map(version) <- {:get_firmware, PN532.Client.get_firmware_version()} do
 
       connected_info = %{
         port: uart_port,
@@ -71,8 +79,8 @@ defmodule  PN532.Client.AutoConnector do
   end
 
   def connecting(:internal, {:connect, [{first_port, _} | rest]}, data) do
-    with {:open_port, :ok} <- {:open_port, PN532.Client.Server.open(first_port)},
-         {:get_firmware, {:ok, version}} when is_map(version) <- {:get_firmware, PN532.Client.Server.get_firmware_version()} do
+    with {:open_port, :ok} <- {:open_port, PN532.Client.open(first_port)},
+         {:get_firmware, {:ok, version}} when is_map(version) <- {:get_firmware, PN532.Client.get_firmware_version()} do
 
       connected_info = %{
         port: first_port,
