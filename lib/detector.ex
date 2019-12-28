@@ -51,10 +51,9 @@ defmodule  PN532.Detector do
     case PN532.Client.in_auto_poll(255, 1, 0) do
       {:ok, 0} ->
         :ok
-      {:ok, 1, message} ->
-        Logger.info("Detected card")
-        {:ok, 2, [message} ->
-          Logger.info("Detected card")
+      {:ok, number, message} ->
+        apply(handler, :handle_detection, [number, message])
+        Logger.info("Detected card: #{inspect message}")
     end
 
     {:next_state, :detecting, data, [{:state_timeout, 1000, :detect}]}

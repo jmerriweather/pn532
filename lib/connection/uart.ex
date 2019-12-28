@@ -171,7 +171,7 @@ defmodule PN532.Connection.Uart do
         {:ok, 0}
       {:circuits_uart, com_port, <<0xD5, 0x61, 1, in_auto_poll_response(_type, message), _padding::bitstring>>} ->
         Logger.debug("Received in_auto_poll frame on #{inspect com_port} with message: #{inspect message}")
-        {:ok, 1, message}
+        {:ok, 1, [message]}
       {:circuits_uart, com_port, <<0xD5, 0x61, 2, in_auto_poll_response(_type1, message1), in_auto_poll_response(_type2, message2), _padding::bitstring>>} ->
         Logger.debug("Received in_auto_poll frame on #{inspect com_port} with two cards with message: #{inspect message1} and #{inspect message2}")
         {:ok, 2, [message1, message2]}
