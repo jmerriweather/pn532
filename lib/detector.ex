@@ -1,36 +1,30 @@
 defmodule  PN532.Detector do
-  @behaviour :gen_statem
+  use GenStateMachine
   require Logger
 
   def start_link(init_args) do
-    :gen_statem.start_link({:local, __MODULE__}, __MODULE__, init_args, [])
+    GenStateMachine.start_link(__MODULE__, init_args, [name: __MODULE__])
   end
 
   def child_spec(init_args) do
     %{id: __MODULE__, type: :worker, start: {__MODULE__, :start_link, [init_args]}}
   end
 
-  def callback_mode, do: :handle_event_function
+  def init(init_arg) do
+    Logger.debug("#{inspect __MODULE__} Configuration: #{inspect init_arg}")
 
-  def terminate(_reason, _state, _data), do: :ok
+    handler = Map.get(init_arg, :handler, PN532.DefaultHandler)
 
-  @spec code_change(any, any, any, any) :: {:ok, any, any}
-  def code_change(_vsn, state, data, _extra), do: {:ok, state, data}
-
-  def init(config) do
-    handler = Map.get(config, :handler, PN532.DefaultHandler)
-
-    Logger.debug("#{inspect __MODULE__} Configuration: #{inspect config}")
-
-    data = config
-    |> Map.put(:handler, handler)
-    |> Map.put(:current_cards, [])
+    data = %{
+      handler: handler,
+      current_cards: []
+    }
 
     {:ok, :waiting, data, [{:next_event, :internal, :wait_for_connection}]}
   end
 
   def start_detecting() do
-    :gen_statem.cast(__MODULE__, :start_detecting)
+    GenStateMachine.cast(__MODULE__, :start_detecting)
   end
 
   def handle_event(type, event, state, data) do
@@ -54,18 +48,18 @@ defmodule  PN532.Detector do
   end
 
   def ready(:cast, :start_detecting, data) do
-    cards = poll_cards(255, 1, 0, data)
+    cards = poll_cards(2, data)
 
     {:next_state, :detecting, data, [{:next_event, :internal, {:check_cards, cards}}]}
   end
 
   def detecting(:state_timeout, :detect, data) do
-    cards = poll_cards(255, 1, 0, data)
+    cards = poll_cards(2, data)
 
     {:keep_state, data, [{:next_event, :internal, {:check_cards, cards}}]}
   end
 
-  def detection(:internal, {:check_cards, cards = []}, data = %{current_cards: current_cards, handler: handler}) do
+  def detecting(:internal, {:check_cards, cards = []}, data = %{current_cards: current_cards, handler: handler}) do
     if cards !== current_cards do
       apply(handler, :handle_event, [:cards_lost, current_cards])
     end
@@ -73,7 +67,7 @@ defmodule  PN532.Detector do
     {:keep_state, %{data | current_cards: cards}, [{:state_timeout, 1000, :detect}]}
   end
 
-  def detection(:internal, {:check_cards, cards}, data = %{current_cards: current_cards, handler: handler}) do
+  def detecting(:internal, {:check_cards, cards}, data = %{current_cards: current_cards, handler: handler}) do
     if cards !== current_cards do
       apply(handler, :handle_event, [:cards_detected, cards])
     end
@@ -81,16 +75,18 @@ defmodule  PN532.Detector do
     {:keep_state, %{data | current_cards: cards}, [{:state_timeout, 1000, :detect}]}
   end
 
-  def poll_cards(poll_number, period, type, %{handler: handler}) do
-    case PN532.Client.in_auto_poll(poll_number, period, type) do
+  def poll_cards(max_targets, %{handler: handler}) do
+
+    case PN532.Client.in_list_passive_target(max_targets) do
       {:ok, 0} ->
         []
-      {:ok, number, message} ->
+      {:ok, [number, message]} ->
         with {:ok, cards} <- apply(handler, :handle_detection, [number, message]) do
           cards
         else
           _ -> []
         end
+      {:error, :timeout} -> []
     end
   end
 

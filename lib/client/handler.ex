@@ -14,7 +14,7 @@ defmodule PN532.Handler do
   @doc """
   Provides a place to handle when an event happens, such as a card is detected
   """
-  @callback handle_event(atom, [map]) :: :ok | {:error, any}
+  @callback handle_event(atom, [map], map) :: {:noreply, map}
 
   @doc false
   defmacro __using__(_) do
@@ -109,19 +109,23 @@ defmodule PN532.Handler do
       end
 
       @doc false
-      def handle_event(:cards_detected, cards) do
+      def handle_event(:cards_detected, cards, data) do
         ids = for %{identifier: identifier, type: type} <- detect_id(cards, []) do
           "#{inspect type} card with ID: #{inspect Base.encode16(identifier)}"
         end
         Logger.info("Detected new #{Enum.join(ids, " and ")}")
+
+        {:noreply, data}
       end
 
       @doc false
-      def handle_event(:cards_lost, cards) do
+      def handle_event(:cards_lost, cards, data) do
         ids = for %{identifier: identifier, type: type} <- detect_id(cards, []) do
           "#{inspect type} card with ID: #{inspect Base.encode16(identifier)}"
         end
         Logger.info("Lost connection with #{Enum.join(ids, " and ")}")
+
+        {:noreply, data}
       end
 
       defoverridable PN532.Handler

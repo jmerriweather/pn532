@@ -21,7 +21,8 @@ defmodule Pn532.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:circuits_uart, "~> 1.4"}
+      {:circuits_uart, "~> 1.4"},
+      {:gen_state_machine, "~> 2.0"}
     ]
   end
 end

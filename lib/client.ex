@@ -1,29 +1,29 @@
 defmodule PN532.Client do
-  use GenServer
+  use GenStateMachine
   require Logger
 
   @ack_frame <<0x00, 0xFF>>
   @nack_frame <<0xFF, 0x00>>
 
   def open(com_port, uart_speed \\ nil) do
-    GenServer.call(__MODULE__, {:open, com_port, uart_speed})
+    GenStateMachine.call(__MODULE__, {:open, com_port, uart_speed})
   end
 
   def close() do
-    GenServer.call(__MODULE__, :close)
+    GenStateMachine.call(__MODULE__, :close)
   end
 
   @spec get_current_cards() :: {:ok, map} | {:error, term}
   def get_current_cards() do
-    GenServer.call(__MODULE__, :get_current_cards)
+    GenStateMachine.call(__MODULE__, :get_current_cards)
   end
 
   def start_target_detection() do
-    #GenServer.cast(__MODULE__, :start_target_detection)
+    GenStateMachine.cast(__MODULE__, :start_target_detection)
   end
 
   def stop_target_detection() do
-    #GenServer.cast(__MODULE__, :stop_target_detection)
+    GenStateMachine.cast(__MODULE__, :stop_target_detection)
   end
 
   def authenticate(device_id, block, key_type, key, card_id) do
@@ -34,76 +34,50 @@ defmodule PN532.Client do
       end
     data = <<block>> <> key <> card_id
 
-    GenServer.call(__MODULE__, {:in_data_exchange, device_id, command, data})
+    GenStateMachine.call(__MODULE__, {:in_data_exchange, device_id, command, data})
   end
 
   def read(device_id, block) do
-    GenServer.call(__MODULE__, {:in_data_exchange, device_id, 0x30, <<block>>})
+    GenStateMachine.call(__MODULE__, {:in_data_exchange, device_id, 0x30, <<block>>})
   end
 
   def write16(device_id, block, <<data::binary-size(16)>>) do
-    GenServer.call(__MODULE__, {:in_data_exchange, device_id, 0xA0, <<block>> <> data})
+    GenStateMachine.call(__MODULE__, {:in_data_exchange, device_id, 0xA0, <<block>> <> data})
   end
 
   def write4(device_id, block, <<data::binary-size(4)>>) do
-    GenServer.call(__MODULE__, {:in_data_exchange, device_id, 0xA2, <<block>> <> data})
+    GenStateMachine.call(__MODULE__, {:in_data_exchange, device_id, 0xA2, <<block>> <> data})
   end
 
   def in_data_exchange(device_id, cmd, addr, data) do
-    GenServer.call(__MODULE__, {:in_data_exchange, device_id, cmd, <<addr, data>>})
+    GenStateMachine.call(__MODULE__, {:in_data_exchange, device_id, cmd, <<addr, data>>})
   end
 
   def in_data_exchange(device_id, cmd, data) do
-    GenServer.call(__MODULE__, {:in_data_exchange, device_id, cmd, data})
+    GenStateMachine.call(__MODULE__, {:in_data_exchange, device_id, cmd, data})
   end
 
   def in_auto_poll(poll_number, period, type) do
-    GenServer.call(__MODULE__, {:in_auto_poll, poll_number, period, type})
+    GenStateMachine.cast(__MODULE__, {:in_auto_poll, poll_number, period, type})
   end
 
   def get_firmware_version() do
-    GenServer.call(__MODULE__, :get_firmware_version)
+    GenStateMachine.call(__MODULE__, :get_firmware_version)
   end
 
   def get_general_status() do
-    GenServer.call(__MODULE__, :get_general_status)
+    GenStateMachine.call(__MODULE__, :get_general_status)
   end
 
   def in_list_passive_target(max_targets) do
-    GenServer.call(__MODULE__, {:in_list_passive_target, max_targets})
+    GenStateMachine.call(__MODULE__, {:in_list_passive_target, max_targets})
   end
 
   def set_serial_baud_rate(baud_rate) do
-    GenServer.call(__MODULE__, {:set_serial_baud_rate, baud_rate})
+    GenStateMachine.call(__MODULE__, {:set_serial_baud_rate, baud_rate})
   end
 
-  def get_target_type(target) do
-    case target do
-      :iso_14443_type_a -> {:ok, 0x00}
-      :felica_212 -> {:ok, 0x01}
-      :felica_424 -> {:ok, 0x02}
-      :iso_14443_type_b -> {:ok, 0x03}
-      :jewel -> {:ok, 0x04}
-      _ -> {:error, :invalid_target_type}
-    end
-  end
-
-  def get_baud_rate(baudrate) do
-    case baudrate do
-      9_600 -> {:ok, <<0x00>>}
-      19_200 -> {:ok, <<0x01>>}
-      38_400 -> {:ok, <<0x02>>}
-      57_600 -> {:ok, <<0x03>>}
-      115_200 -> {:ok, <<0x04>>}
-      230_400 -> {:ok, <<0x05>>}
-      460_800 -> {:ok, <<0x06>>}
-      921_600 -> {:ok, <<0x07>>}
-      1_288_000 -> {:ok, <<0x08>>}
-      _ -> :invalid_baud_rate
-    end
-  end
-
-  # GenServer
+  # GenStateMachine
 
   def child_spec(args) do
     %{id: __MODULE__, type: :worker, start: {__MODULE__, :start_link, [args]}}
@@ -111,176 +85,112 @@ defmodule PN532.Client do
 
   # API
   def start_link(init_arg) do
-    GenServer.start_link(__MODULE__, init_arg, name: __MODULE__)
+    GenStateMachine.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
   def init(init_arg) do
     handler = Map.get(init_arg, :handler, PN532.DefaultHandler)
     target_type = Map.get(init_arg, :target_type, :iso_14443_type_a)
-    detection_interval = Map.get(init_arg, :detection_interval, 50)
     connection_options = Map.get(init_arg, :connection_options, %{})
+
+    uart_port = Map.get(init_arg, :uart_port, nil)
 
     uart_pid = Map.get(connection_options, :uart_pid, PN532.UART)
     uart_speed = Map.get(connection_options, :uart_speed, 115200)
     read_timeout = Map.get(connection_options, :read_timeout, 1500)
 
     connection = Map.get(init_arg, :connection, PN532.Connection.Uart)
-    {:ok,
+    {:ok, :initialising,
       %{
           connection: connection,
           connection_options: %{
             uart_pid: uart_pid,
+            uart_port: uart_port,
             uart_speed: uart_speed,
             uart_open: false,
-            read_timeout: read_timeout
+            read_timeout: read_timeout,
+            power_mode: :low_v_bat
           },
-          power_mode: :low_v_bat,
           handler: handler,
           target_type: target_type,
           current_cards: nil,
-          detection_ref: nil,
           polling: false,
-          poll_number: nil,
-          poll_period: nil,
-          poll_type: nil,
-          detection_interval: detection_interval
+          poll_number: 255,
+          poll_period: 1,
+          poll_type: 0
       },
-      {:continue, :setup}
+      [{:next_event, :internal, :handle_setup}]
     }
   end
 
-  # defp write_bytes(pid, bytes), do: Circuits.UART.write(pid, bytes)
-
-  # defp wakeup(%{uart_pid: uart_pid, power_mode: :low_v_bat}) do
-  #   Circuits.UART.write(uart_pid, @wakeup_preamble)
-  #   Circuits.UART.write(uart_pid, @sam_mode_normal)
-  #   receive do
-  #     ack -> Logger.debug("SAM ACK: #{inspect ack}")
-  #   after
-  #     16 -> :timeout
-  #   end
-
-  #   receive do
-  #     response -> Logger.debug("SAM response: #{inspect response}")
-  #   after
-  #     16 -> :timeout
-  #   end
-
-  #   :normal
-  # end
-
-  # defp wakeup(%{power_mode: power_mode}) do
-  #   power_mode
-  # end
-
-  # defp detect_card(uart_pid, target_type, max_targets, read_timeout, handler) do
-  #   in_list_passive_target_command = <<0x4A, max_targets, target_type>>
-  #   write_bytes(uart_pid, in_list_passive_target_command)
-
-  #   receive do
-  #     {:circuits_uart, _com_port, <<0xD5, 0x4B, total_cards::signed-integer, rest::binary>>} ->
-  #       apply(handler, :handle_detection, [total_cards, rest])
-  #   after
-  #     read_timeout ->
-  #       write_bytes(uart_pid, <<0x00, 0x00, 0xFF, @ack_frame, 0x00>>)
-  #       {:error, :timeout}
-  #   end
-  # end
-
-  def handle_continue(:setup, state = %{handler: handler}) do
-    apply(handler, :setup, [state])
-
-    {:noreply, state}
+  def handle_event({:call, from}, :get_current_cards, _, %{current_cards: cards}) do
+    {:keep_state_and_data, [{:reply, from, {:ok, cards}}]}
   end
 
-  def handle_call(:get_current_cards, _, state = %{current_cards: cards}) do
-    {:reply, {:ok, cards}, state}
+  def handle_event({:call, from}, :open, state, _data) when state != :disconnected do
+    {:keep_state_and_data, [{:reply, from, {:error, :already_open}}]}
   end
 
-  def handle_call({:open, _com_port, _uart_speed}, _, state = %{connection_options: %{uart_open: true}}) do
-    {:reply, {:error, :already_open}, state}
+  def handle_event({:call, from}, :open, _, %{connection_options: %{uart_open: true}}) do
+    {:keep_state_and_data, [{:reply, from, {:error, :already_open}}]}
   end
 
-  def handle_call({:open, com_port, nil}, _from, state = %{connection: connection, connection_options: connection_options}) do
-    with :ok <- connection.open(connection_options, com_port) do
-      {:reply, :ok, %{state | connection_options: %{connection_options | uart_open: true}}}
-    else
-      error ->
-        Logger.error("Error occured opening UART: #{inspect error}")
-        {:reply, error, state}
-    end
+  def handle_event({:call, from}, {:open, com_port, nil}, _, data = %{connection_options: connection_options}) do
+    new_connection_options = %{connection_options | uart_port: com_port}
+    {:next_state, :connecting, %{data | connection_options: new_connection_options}, [{:next_event, :internal, {:auto_connect, from}}]}
   end
 
-  def handle_call({:open, com_port, uart_speed}, _from, state = %{connection: connection, connection_options: connection_options}) do
-    with :ok <- connection.open(connection_options, com_port, uart_speed) do
-      {:reply, :ok, %{state | connection_options: %{connection_options | uart_open: true, uart_speed: uart_speed}}}
-    else
-      error ->
-        Logger.error("Error occured opening UART: #{inspect error}")
-        {:reply, error, %{state | connection_options: %{connection_options | uart_speed: uart_speed}}}
-    end
+  def handle_event({:call, from}, {:open, com_port, uart_speed}, _, data = %{connection_options: connection_options}) do
+    new_connection_options = %{connection_options | uart_port: com_port, uart_speed: uart_speed}
+    {:next_state, :connecting, %{data | connection_options: new_connection_options}, [{:next_event, :internal, {:auto_connect, from}}]}
   end
 
-  def handle_call(_, _, state = %{connection_options: %{uart_open: false}}) do
-    {:reply, {:error, :not_open}, state}
+  def handle_event({:call, from}, _, _state, %{connection_options: %{uart_open: false}}) do
+    {:keep_state_and_data, [{:reply, from, {:error, :not_open}}]}
   end
 
-  def handle_call(:close, _from, state = %{connection: connection, connection_options: connection_options}) do
+  def handle_event({:call, from}, :close, _, data = %{connection: connection, connection_options: connection_options}) do
     response = connection.close(connection_options)
-    {:reply, response, %{state | connection_options: %{connection_options | uart_open: false}}}
+    {:next_state, :disconnected, %{data | connection_options: %{connection_options | uart_open: false}}, [{:reply, from, response}]}
   end
 
-  def handle_call(:get_firmware_version, _from, state = %{connection: connection, connection_options: connection_options}) do
-    new_power_mode = connection.wakeup(state)
-
-    response = connection.get_firmware_version(connection_options)
-
-    {:reply, response, %{state | power_mode: new_power_mode}}
+  def handle_event(:info, {:circuits_uart, com_port, <<0x7F>>}, _, _data) do
+    Logger.error("Received Error frame on #{inspect com_port}")
+    :keep_state_and_data
   end
 
-  def handle_call(:get_general_status, _from, state = %{connection: connection, connection_options: connection_options}) do
-    new_power_mode = connection.wakeup(state)
-
-    response = connection.get_general_status(connection_options)
-
-    {:reply, response, %{state | power_mode: new_power_mode}}
+  def handle_event(:info, {:circuits_uart, com_port, @ack_frame}, _, _data) do
+    Logger.debug("Received ACK frame on #{inspect com_port}")
+    :keep_state_and_data
   end
 
-  def handle_call({:set_serial_baud_rate, baud_rate}, _from, state = %{connection: connection, connection_options: connection_options}) do
-    new_power_mode = connection.wakeup(state)
-
-    response = connection.set_serial_baud_rate(connection_options, baud_rate)
-
-    {:reply, response, %{state | power_mode: new_power_mode}}
+  def handle_event(:info, {:circuits_uart, com_port, @nack_frame}, _, _data) do
+    Logger.debug("Received NACK frame on #{inspect com_port}")
+    :keep_state_and_data
   end
 
-  def handle_call({:in_data_exchange, device_id, cmd, data}, _from, state = %{connection: connection, connection_options: connection_options}) do
-    new_power_mode = connection.wakeup(state)
+  def handle_event(type, event, state, data) do
+    Logger.info("#{inspect __MODULE__} State: #{inspect(type)}, #{inspect(event)}, #{inspect(state)}")
 
-    response = connection.in_data_exchange(connection_options, device_id, cmd, data)
-
-    {:reply, response, %{state | power_mode: new_power_mode}}
+    apply(__MODULE__, state, [type, event, data])
   end
 
-  def handle_call({:in_list_passive_target, max_targets}, _from, state = %{connection: connection, connection_options: connection_options, target_type: target_type}) do
 
-    with {:ok, target_byte} <- get_target_type(target_type) do
-      new_power_mode = connection.wakeup(state)
-      response = connection.in_list_passive_target(connection_options, target_byte, max_targets)
+  defdelegate initialising(type, event, data), to: PN532.Client.Initialising
+  defdelegate connecting(type, event, data), to: PN532.Client.Connecting
+  defdelegate connected(type, event, data), to: PN532.Client.Connected
+  defdelegate disconnected(type, event, data), to: PN532.Client.Disconnected
+  defdelegate detecting(type, event, data), to: PN532.Client.Detecting
 
-      {:reply, response, %{state | power_mode: new_power_mode}}
-    else
-      error -> error
-    end
-  end
 
-  def handle_call({:in_auto_poll, poll_number, period, type}, _from, state = %{connection: connection, connection_options: connection_options}) do
-    new_power_mode = connection.wakeup(state)
 
-    response = connection.in_auto_poll(connection_options, poll_number, period, type)
+  # def handle_cast({:in_auto_poll, poll_number, period, type}, state = %{connection: connection, connection_options: connection_options}) do
+  #   new_power_mode = connection.wakeup(state)
 
-    {:reply, response, %{state | power_mode: new_power_mode, polling: true, poll_number: poll_number, poll_period: period, poll_type: type}}
-  end
+  #   connection.in_auto_poll(connection_options, poll_number, period, type)
+
+  #   {:noreply, %{state | power_mode: new_power_mode, polling: true, poll_number: poll_number, poll_period: period, poll_type: type}}
+  # end
 
   # def handle_cast(:in_jump_for_dep, state = %{uart_pid: uart_pid}) do
   #   new_power_mode = wakeup(state)
@@ -411,18 +321,18 @@ defmodule PN532.Client do
   #   end
   # end
 
-  def handle_info({:circuits_uart, com_port, <<0x7F>>}, state) do
-    Logger.error("Received Error frame on #{inspect com_port}")
-    {:noreply, state}
-  end
+  # def handle_info({:circuits_uart, com_port, <<0x7F>>}, state) do
+  #   Logger.error("Received Error frame on #{inspect com_port}")
+  #   {:noreply, state}
+  # end
 
-  def handle_info({:circuits_uart, com_port, @ack_frame}, state) do
-    Logger.debug("Received ACK frame on #{inspect com_port}")
-    {:noreply, state}
-  end
+  # def handle_info({:circuits_uart, com_port, @ack_frame}, state) do
+  #   Logger.debug("Received ACK frame on #{inspect com_port}")
+  #   {:noreply, state}
+  # end
 
-  def handle_info({:circuits_uart, com_port, @nack_frame}, state) do
-    Logger.debug("Received NACK frame on #{inspect com_port}")
-    {:noreply, state}
-  end
+  # def handle_info({:circuits_uart, com_port, @nack_frame}, state) do
+  #   Logger.debug("Received NACK frame on #{inspect com_port}")
+  #   {:noreply, state}
+  # end
 end

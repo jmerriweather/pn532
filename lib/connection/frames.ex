@@ -169,6 +169,17 @@ defmodule PN532.Connection.Frames do
     }
   end
 
+  def get_target_type(target) do
+    case target do
+      :iso_14443_type_a -> {:ok, 0x00}
+      :felica_212 -> {:ok, 0x01}
+      :felica_424 -> {:ok, 0x02}
+      :iso_14443_type_b -> {:ok, 0x03}
+      :jewel -> {:ok, 0x04}
+      _ -> {:error, :invalid_target_type}
+    end
+  end
+
   def get_bitrate(<<0x00>>), do: "106 kbps"
   def get_bitrate(<<0x01>>), do: "212 kbps"
   def get_bitrate(<<0x02>>), do: "424 kbps"

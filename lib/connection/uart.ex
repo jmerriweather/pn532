@@ -25,19 +25,54 @@ defmodule PN532.Connection.Uart do
     end
   end
 
-  def open(%{uart_pid: uart_pid, uart_speed: uart_speed}, com_port) do
-    Circuits.UART.open(uart_pid, com_port, speed: uart_speed, active: true, framing: PN532.Connection.Uart.Framing)
+  def auto_connect(connect_options = %{uart_port: uart_port}) when not is_nil(uart_port) do
+    auto_connect(connect_options, [{uart_port, ""}])
   end
 
-  def open(%{uart_pid: uart_pid}, com_port, uart_speed) do
-    Circuits.UART.open(uart_pid, com_port, speed: uart_speed, active: true, framing: PN532.Connection.Uart.Framing)
+  def auto_connect(connect_options) do
+    available_ports = Map.to_list(Circuits.UART.enumerate())
+    auto_connect(connect_options, available_ports)
+  end
+
+  def auto_connect(connect_options, [{first_port, _} | rest]) do
+    with {:open_port, :ok} <- {:open_port, open(connect_options, first_port)},
+         {:get_firmware, {:ok, version}} when is_map(version) <- {:get_firmware, get_firmware_version(connect_options)} do
+
+      connected_info = %{
+        port: first_port,
+        firmware_version: version
+      }
+      {:ok, connected_info}
+    else
+      {:open_port, error} ->
+        Logger.error("Failed to connect to port #{inspect first_port}, error: #{inspect error}, trying next port")
+        auto_connect(connect_options, rest)
+      {:get_firmware, error} ->
+        Logger.error("Failed to get firmware on port #{inspect first_port}, error: #{inspect error}, trying next port")
+        auto_connect(connect_options, rest)
+    end
+  end
+  def auto_connect(_, []) do
+    {:error, :no_ports_avaialble}
+  end
+
+  def open(%{uart_pid: uart_pid, uart_speed: uart_speed, uart_port: uart_port}, _) when not is_nil(uart_port) do
+    Circuits.UART.open(uart_pid, uart_port, speed: uart_speed, active: true, framing: PN532.Connection.Uart.Framing)
+  end
+
+  def open(%{uart_pid: uart_pid, uart_speed: uart_speed}, uart_port) do
+    Circuits.UART.open(uart_pid, uart_port, speed: uart_speed, active: true, framing: PN532.Connection.Uart.Framing)
+  end
+
+  def open(%{uart_pid: uart_pid}, uart_port, uart_speed) do
+    Circuits.UART.open(uart_pid, uart_port, speed: uart_speed, active: true, framing: PN532.Connection.Uart.Framing)
   end
 
   def close(%{uart_pid: uart_pid}) do
     Circuits.UART.close(uart_pid)
   end
 
-  def wakeup(%{power_mode: :low_v_bat, connection_options: %{uart_pid: uart_pid}}) do
+  def wakeup(%{connection_options: %{uart_pid: uart_pid, power_mode: :low_v_bat}}) do
     Circuits.UART.write(uart_pid, @wakeup_preamble)
     Circuits.UART.write(uart_pid, @sam_mode_normal)
     receive do
@@ -55,7 +90,7 @@ defmodule PN532.Connection.Uart do
     :normal
   end
 
-  def wakeup(%{power_mode: power_mode}) do
+  def wakeup(%{connection_options: %{power_mode: power_mode}}) do
     power_mode
   end
 
@@ -160,25 +195,8 @@ defmodule PN532.Connection.Uart do
     end
   end
 
-  def in_auto_poll(%{uart_pid: uart_pid, read_timeout: read_timeout}, poll_number, period, type) do
+  def in_auto_poll(%{uart_pid: uart_pid}, poll_number, period, type) do
     in_auto_poll_command = in_auto_poll_request_frame(poll_number, period, type)
     write_bytes(uart_pid, in_auto_poll_command)
-
-    receive do
-      # received frame with no cards
-      {:circuits_uart, com_port, <<0xD5, 0x61, 0, _rest::bitstring>>} ->
-        Logger.debug("Received in_auto_poll frame on #{inspect com_port} with no cards")
-        {:ok, 0}
-      {:circuits_uart, com_port, <<0xD5, 0x61, 1, in_auto_poll_response(_type, message), _padding::bitstring>>} ->
-        Logger.debug("Received in_auto_poll frame on #{inspect com_port} with message: #{inspect message}")
-        {:ok, 1, [message]}
-      {:circuits_uart, com_port, <<0xD5, 0x61, 2, in_auto_poll_response(_type1, message1), in_auto_poll_response(_type2, message2), _padding::bitstring>>} ->
-        Logger.debug("Received in_auto_poll frame on #{inspect com_port} with two cards with message: #{inspect message1} and #{inspect message2}")
-        {:ok, 2, [message1, message2]}
-    after
-      read_timeout ->
-        write_bytes(uart_pid, <<0x00, 0x00, 0xFF, @ack_frame, 0x00>>)
-        {:error, :timeout}
-    end
   end
 end
