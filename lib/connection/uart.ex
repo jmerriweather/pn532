@@ -163,6 +163,36 @@ defmodule PN532.Connection.Uart do
     end
   end
 
+  def in_select(%{uart_pid: uart_pid, read_timeout: read_timeout}, device_id) do
+    write_bytes(uart_pid, <<0x54>> <> <<device_id>>)
+
+    receive do
+      {:circuits_uart, _com_port, <<0xD5, 0x55, 0>>} ->
+        :ok
+      {:circuits_uart, _com_port, <<0xD5, 0x55, status>>} ->
+        error =  get_error(status)
+        {:error, error}
+    after
+      read_timeout ->
+        {:error, :timeout}
+    end
+  end
+
+  def in_deselect(%{uart_pid: uart_pid, read_timeout: read_timeout}, device_id) do
+    write_bytes(uart_pid, <<0x44>> <> <<device_id>>)
+
+    receive do
+      {:circuits_uart, _com_port, <<0xD5, 0x45, 0>>} ->
+        :ok
+      {:circuits_uart, _com_port, <<0xD5, 0x45, status>>} ->
+        error =  get_error(status)
+        {:error, error}
+    after
+      read_timeout ->
+        {:error, :timeout}
+    end
+  end
+
   def in_data_exchange(%{uart_pid: uart_pid, read_timeout: read_timeout}, device_id, cmd, data) do
     write_bytes(uart_pid, <<0x40>> <> <<device_id>> <> <<cmd>> <> data)
 

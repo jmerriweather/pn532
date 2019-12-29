@@ -37,6 +37,14 @@ defmodule PN532.Client do
     GenStateMachine.call(__MODULE__, {:in_data_exchange, device_id, command, data})
   end
 
+  def select(device_id) do
+    GenStateMachine.call(__MODULE__, {:in_select, device_id})
+  end
+
+  def deselect(device_id) do
+    GenStateMachine.call(__MODULE__, {:in_deselect, device_id})
+  end
+
   def read(device_id, block) do
     GenStateMachine.call(__MODULE__, {:in_data_exchange, device_id, 0x30, <<block>>})
   end
