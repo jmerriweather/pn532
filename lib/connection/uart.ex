@@ -6,7 +6,6 @@ defmodule PN532.Connection.Uart do
   @wakeup_preamble <<0x55, 0x55, 0x00, 0x00, 0x00>>
   @sam_mode_normal <<0x14, 0x01, 0x00, 0x00>>
   @ack_frame <<0x00, 0xFF>>
-  @nack_frame <<0xFF, 0x00>>
 
   defp write_bytes(pid, bytes), do: Circuits.UART.write(pid, bytes)
 
