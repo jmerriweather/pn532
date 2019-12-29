@@ -35,6 +35,7 @@ defmodule PN532.Connection.Uart do
 
   def auto_connect(connect_options, [{first_port, _} | rest]) do
     with {:open_port, :ok} <- {:open_port, open(connect_options, first_port)},
+         {:wakeup, :normal} <- {:wakeup, wakeup(%{connection_options: connect_options})},
          {:get_firmware, {:ok, version}} when is_map(version) <- {:get_firmware, get_firmware_version(connect_options)} do
 
       connected_info = %{
@@ -45,6 +46,9 @@ defmodule PN532.Connection.Uart do
     else
       {:open_port, error} ->
         Logger.error("Failed to connect to port #{inspect first_port}, error: #{inspect error}, trying next port")
+        auto_connect(connect_options, rest)
+      {:wakeup, error} ->
+        Logger.error("Failed to wakeup #{inspect first_port}, error: #{inspect error}, trying next port")
         auto_connect(connect_options, rest)
       {:get_firmware, error} ->
         Logger.error("Failed to get firmware on port #{inspect first_port}, error: #{inspect error}, trying next port")

@@ -186,7 +186,7 @@ defmodule PN532.Client do
   end
 
   def handle_event(type, event, state, data) do
-    Logger.info("#{inspect __MODULE__} State: #{inspect(type)}, #{inspect(event)}, #{inspect(state)}")
+    Logger.debug("#{inspect __MODULE__} State: #{inspect(type)}, #{inspect(event)}, #{inspect(state)}")
 
     apply(__MODULE__, state, [type, event, data])
   end
