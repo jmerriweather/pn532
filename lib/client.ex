@@ -13,9 +13,12 @@ defmodule PN532.Client do
     GenStateMachine.call(__MODULE__, :close)
   end
 
-  @spec get_current_cards() :: {:ok, map} | {:error, term}
   def get_current_cards() do
     GenStateMachine.call(__MODULE__, :get_current_cards)
+  end
+
+  def get_detected_cards() do
+    GenStateMachine.call(__MODULE__, :get_detected_cards)
   end
 
   def start_target_detection() do
@@ -122,6 +125,7 @@ defmodule PN532.Client do
           handler: handler,
           target_type: target_type,
           current_cards: nil,
+          detected_cards: nil,
           polling: false,
           poll_number: 255,
           poll_period: 1,
@@ -132,6 +136,10 @@ defmodule PN532.Client do
   end
 
   def handle_event({:call, from}, :get_current_cards, _, %{current_cards: cards}) do
+    {:keep_state_and_data, [{:reply, from, {:ok, cards}}]}
+  end
+
+  def handle_event({:call, from}, :get_detected_cards, _, %{detected_cards: cards}) do
     {:keep_state_and_data, [{:reply, from, {:ok, cards}}]}
   end
 
@@ -189,7 +197,7 @@ defmodule PN532.Client do
   defdelegate connected(type, event, data), to: PN532.Client.Connected
   defdelegate disconnected(type, event, data), to: PN532.Client.Disconnected
   defdelegate detecting(type, event, data), to: PN532.Client.Detecting
-
+  defdelegate detected(type, event, data), to: PN532.Client.Detected
 
 
   # def handle_cast({:in_auto_poll, poll_number, period, type}, state = %{connection: connection, connection_options: connection_options}) do
