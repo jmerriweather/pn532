@@ -4,6 +4,10 @@ defmodule PN532.Client.Detected do
   """
   require Logger
 
+  def detecting(:cast, :stop_target_detection, data)  do
+    {:next_state, :connected, data}
+  end
+
   def detected(:internal, {:cards_detected, cards},
     data = %{current_cards: current_cards, handler: handler, connection: connection, connection_options: connection_options}) do
 
@@ -42,9 +46,9 @@ defmodule PN532.Client.Detected do
   def detected(type, event, data) do
     case PN532.Client.Connected.connected(type, event, data) do
       {option, data, actions} when is_list(actions) ->
-        {option, data, actions ++ [{:state_timeout, 100, :poll_for_cards}]}
+        {option, data, actions}
       {option, actions} when is_list(actions) ->
-        {option, actions ++ [{:state_timeout, 100, :poll_for_cards}]}
+        {option, actions}
     end
   end
 end

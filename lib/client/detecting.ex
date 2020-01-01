@@ -6,7 +6,7 @@ defmodule PN532.Client.Detecting do
   require PN532.Connection.Frames
   import PN532.Connection.Frames
 
-  def detecting(:cast, :stop_target_detection, data) do
+  def detecting(:cast, :stop_target_detection, data)  do
     {:next_state, :connected, data}
   end
 
