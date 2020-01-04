@@ -26,23 +26,6 @@ defmodule PN532.Client.Detected do
     end
   end
 
-  # def detected(:state_timeout, :poll_status, _data) do
-  #   {:keep_state_and_data, [{:next_event, :internal, :poll_status}]}
-  # end
-
-  # def detected(:internal, :poll_status, data = %{connection: connection, connection_options: connection_options, current_targets: current_targets}) do
-  #   with {:ok, %{targets: targets}} <- connection.get_general_status(connection_options) do
-  #     Logger.info("Targets: #{inspect targets}, current targets: #{inspect current_targets}")
-  #     if current_targets !== targets do
-  #       {:next_state, :detecting, data, [{:next_event, :internal, :poll_for_cards}]}
-  #     else
-  #       {:keep_state_and_data, [{:state_timeout, 1000, :poll_status}]}
-  #     end
-  #   else
-  #     _ -> :keep_state_and_data
-  #   end
-  # end
-
   def detected(type, event, data) do
     case PN532.Client.Connected.connected(type, event, data) do
       {option, data, actions} when is_list(actions) ->
