@@ -29,7 +29,7 @@ defmodule PN532.Client.Detecting do
         apply(handler, :handle_event, [:cards_lost, current_cards, PN532.HandlerClient, PN532.HandlerClient.new(connection, connection_options)])
       end
 
-    {:keep_state, %{data | current_cards: nil, poll_number: 255, connection: client.connection, connection_options: client.connection_options}, [{:state_timeout, 100, :poll_for_cards}]}
+    {:keep_state, %{data | current_cards: nil, detected_cards: nil, poll_number: 255, connection: client.connection, connection_options: client.connection_options}, [{:state_timeout, 100, :poll_for_cards}]}
   end
 
   def detecting(:info, {:circuits_uart, com_port, <<0xD5, 0x61, 1, in_auto_poll_response(_type, message), _padding::bitstring>>},
@@ -42,7 +42,7 @@ defmodule PN532.Client.Detecting do
       {:next_state, :detected, %{data | poll_number: 7}, [{:next_event, :internal, {:cards_detected, cards}}]}
     else
       _ ->
-        {:keep_state, %{data | current_cards: nil, poll_number: 255}, [{:state_timeout, 100, :poll_for_cards}]}
+        {:keep_state, %{data | current_cards: nil, detected_cards: nil, poll_number: 255}, [{:state_timeout, 100, :poll_for_cards}]}
     end
   end
 
@@ -57,7 +57,7 @@ defmodule PN532.Client.Detecting do
       {:next_state, :detected, %{data | poll_number: 7}, [{:next_event, :internal, {:cards_detected, cards}}]}
     else
       _ ->
-        {:keep_state, %{data | current_cards: nil, poll_number: 255}, [{:state_timeout, 100, :poll_for_cards}]}
+        {:keep_state, %{data | current_cards: nil, detected_cards: nil, poll_number: 255}, [{:state_timeout, 100, :poll_for_cards}]}
     end
   end
 
