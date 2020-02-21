@@ -88,6 +88,14 @@ defmodule PN532.Client do
     GenStateMachine.call(__MODULE__, {:set_serial_baud_rate, baud_rate})
   end
 
+  def send_desfire_command(device_id, cla, ins, p1, p2, le) do
+    GenStateMachine.call(__MODULE__, {:send_desfire_command, device_id, cla, ins, p1, p2, le})
+  end
+
+  def send_desfire_command(device_id, cla, ins, p1, p2, data, le) do
+    GenStateMachine.call(__MODULE__, {:send_desfire_command, device_id, cla, ins, p1, p2, data, le})
+  end
+
   # GenStateMachine
 
   def child_spec(args) do

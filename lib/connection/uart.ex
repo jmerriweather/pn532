@@ -232,4 +232,24 @@ defmodule PN532.Connection.Uart do
     in_auto_poll_command = in_auto_poll_request_frame(poll_number, period, type)
     write_bytes(uart_pid, in_auto_poll_command)
   end
+
+  def send_desfire_command(options, device_id, cla, ins, p1, p2, le) do
+    {:ok, response} = in_data_exchange(options, device_id, cla, <<ins, p1, p2, le>>)
+    process_desfire_command(options, device_id, response, <<>>)
+  end
+
+  def send_desfire_command(options, device_id, cla, ins, p1, p2, data, le) do
+    {:ok, response} = in_data_exchange(options, device_id, cla, ins <> p1 <> p2 <> byte_size(data) <> data <> le)
+    process_desfire_command(options, device_id, response, <<>>)
+  end
+
+  defp process_desfire_command(options, device_id, apdu, acc) do
+    case PN532.Connection.Desfire.apdu_response_frame(apdu) do
+      {:more, data} ->
+        {:ok, response} = in_data_exchange(options, device_id, 0x90, <<0xAF, 0x00, 0x00, 0x00>>)
+        process_desfire_command(options, device_id, response, acc <> data)
+      {:complete, data} ->
+        {:ok, acc <> data}
+    end
+  end
 end

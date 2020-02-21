@@ -16,7 +16,8 @@ defmodule PN532.Supervisor do
   @impl Supervisor
   def init([config, opts]) do
     opts = Keyword.put(opts, :strategy, :one_for_all)
-    children = get_configured_client(config)
+    target_type = Map.get(config, :target_type, :iso_14443_type_a)
+    children = get_configured_client(Map.put(config, :target_type, target_type))
     Supervisor.init(children, opts)
   end
 
@@ -33,7 +34,16 @@ defmodule PN532.Supervisor do
     ]
   end
 
-  def get_configured_client(_config) do
-    []
+  def get_configured_client(config) do
+    [
+      %{
+        id: PN532.UART,
+        start: {Circuits.UART, :start_link, [[name: PN532.UART]]}
+      },
+      %{
+        id: config.target_type,
+        start: {PN532.Client, :start_link, [config]}
+      }
+    ]
   end
 end

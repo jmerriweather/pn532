@@ -50,6 +50,18 @@ defmodule PN532.Client.Connected do
     {:keep_state, %{data | connection_options: %{connection_options | power_mode: new_power_mode}}, [{:reply, from, response}]}
   end
 
+  def connected({:call, from}, {:send_desfire_command, device_id, cla, ins, p1, p2, data, le}, data = %{connection: connection, connection_options: connection_options}) do
+    new_power_mode = connection.wakeup(data)
+    response = connection.send_desfire_command(connection_options, device_id, cla, ins, p1, p2, data, le)
+    {:keep_state, %{data | connection_options: %{connection_options | power_mode: new_power_mode}}, [{:reply, from, response}]}
+  end
+
+  def connected({:call, from}, {:send_desfire_command, device_id, cla, ins, p1, p2, le}, data = %{connection: connection, connection_options: connection_options}) do
+    new_power_mode = connection.wakeup(data)
+    response = connection.send_desfire_command(connection_options, device_id, cla, ins, p1, p2, le)
+    {:keep_state, %{data | connection_options: %{connection_options | power_mode: new_power_mode}}, [{:reply, from, response}]}
+  end
+
   def connected({:call, from}, {:in_list_passive_target, max_targets}, data = %{connection: connection, connection_options: connection_options, target_type: target_type}) do
     with {:ok, target_byte} <- PN532.Connection.Frames.get_target_type(target_type) do
       new_power_mode = connection.wakeup(data)
