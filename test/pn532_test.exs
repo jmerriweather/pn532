@@ -1,7 +1,7 @@
 defmodule Pn532Test do
   use ExUnit.Case, async: false
 
-  @test_uart "/dev/ttyS4"
+  @test_uart "/dev/ttyS3"
 
   setup_all do
     # start mifare client genserver
