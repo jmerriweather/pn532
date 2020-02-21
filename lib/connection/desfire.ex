@@ -14,30 +14,36 @@ defmodule PN532.Connection.Desfire do
     end
   end
 
-  def parse_get_version(data) do
-    <<
-      hardware_vendor_id::binary-size(1),
-      hardware_type::binary-size(1),
-      hardware_subtype::binary-size(1),
-      hardware_version_major::binary-size(1),
-      hardware_version_minor::binary-size(1),
-      hardware_storage_size::binary-size(1),
-      hardware_protocol::binary-size(1),
-      software_vendor_id::binary-size(1),
-      software_type::binary-size(1),
-      software_subtype::binary-size(1),
-      software_version_major::binary-size(1),
-      software_version_minor::binary-size(1),
-      software_storage_size::binary-size(1),
-      software_protocol::binary-size(1),
-      uid::binary-size(7),
-      batch_number::binary-size(5),
-      production_week::binary-size(1),
-      production_year::binary-size(1),
-    >> = data
+  defp get_hardware_product(<<0x01>> = byte), do: {byte, "MIFARE DESFire native IC (physical card)"}
+  defp get_hardware_product(<<0x08>> = byte), do: {byte, "MIFARE DESFire Light native IC (physical card) "}
+  defp get_hardware_product(<<0x81>> = byte), do: {byte, "MIFARE DESFire implementation on microcontroller (physical card)"}
+  defp get_hardware_product(<<0x83>> = byte), do: {byte, "MIFARE DESFire implementation on microcontroller (physical card)"}
+  defp get_hardware_product(<<0x91>> = byte), do: {byte, "MIFARE DESFire applet on Java card / secure element"}
+  defp get_hardware_product(<<0xA1>> = byte), do: {byte, "MIFARE DESFire HCE (MIFARE 2GO)"}
+  defp get_hardware_product(byte), do: {byte, "Unknown"}
+
+  def parse_get_version(<<  hardware_vendor_id::binary-size(1),
+                            hardware_type::binary-size(1),
+                            hardware_subtype::binary-size(1),
+                            hardware_version_major::binary-size(1),
+                            hardware_version_minor::binary-size(1),
+                            hardware_storage_size::binary-size(1),
+                            hardware_protocol::binary-size(1),
+                            software_vendor_id::binary-size(1),
+                            software_type::binary-size(1),
+                            software_subtype::binary-size(1),
+                            software_version_major::binary-size(1),
+                            software_version_minor::binary-size(1),
+                            software_storage_size::binary-size(1),
+                            software_protocol::binary-size(1),
+                            uid::binary-size(7),
+                            batch_number::binary-size(5),
+                            production_week::binary-size(1),
+                            production_year::binary-size(1),
+                        >>) do
     %{
       hardware_vendor_id: hardware_vendor_id,
-      hardware_type: hardware_type,
+      hardware_type: get_hardware_product(hardware_type),
       hardware_subtype: hardware_subtype,
       hardware_version_major: hardware_version_major,
       hardware_version_minor: hardware_version_minor,
