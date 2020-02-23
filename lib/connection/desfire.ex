@@ -41,26 +41,30 @@ defmodule PN532.Connection.Desfire do
                             production_week::binary-size(1),
                             production_year::binary-size(1),
                         >>) do
-    %{
-      hardware_vendor_id: hardware_vendor_id,
-      hardware_type: get_hardware_product(hardware_type),
-      hardware_subtype: hardware_subtype,
-      hardware_version_major: hardware_version_major,
-      hardware_version_minor: hardware_version_minor,
-      hardware_storage_size: hardware_storage_size,
-      hardware_protocol: hardware_protocol,
-      software_vendor_id: software_vendor_id,
-      software_type: software_type,
-      software_subtype: software_subtype,
-      software_version_major: software_version_major,
-      software_version_minor: software_version_minor,
-      software_storage_size: software_storage_size,
-      software_protocol: software_protocol,
-      uid: uid,
-      batch_number: batch_number,
-      production_week: Base.encode16(production_week),
-      production_year: Base.encode16(production_year)
+    {:ok,
+      %{
+        hardware_vendor_id: hardware_vendor_id,
+        hardware_type: get_hardware_product(hardware_type),
+        hardware_subtype: hardware_subtype,
+        hardware_version_major: hardware_version_major,
+        hardware_version_minor: hardware_version_minor,
+        hardware_storage_size: hardware_storage_size,
+        hardware_protocol: hardware_protocol,
+        software_vendor_id: software_vendor_id,
+        software_type: software_type,
+        software_subtype: software_subtype,
+        software_version_major: software_version_major,
+        software_version_minor: software_version_minor,
+        software_storage_size: software_storage_size,
+        software_protocol: software_protocol,
+        uid: uid,
+        batch_number: batch_number,
+        production_week: Base.encode16(production_week),
+        production_year: Base.encode16(production_year)
+      }
     }
   end
-
+  def parse_get_version(_) do
+    {:error, :failed_to_parse}
+  end
 end
