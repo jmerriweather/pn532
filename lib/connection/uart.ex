@@ -234,13 +234,19 @@ defmodule PN532.Connection.Uart do
   end
 
   def send_desfire_command(options, device_id, cla, ins, p1, p2, le) do
-    {:ok, response} = in_data_exchange(options, device_id, cla, <<ins, p1, p2, le>>)
-    process_desfire_command(options, device_id, response, <<>>)
+    with {:ok, response} <- in_data_exchange(options, device_id, cla, <<ins, p1, p2, le>>) do
+      process_desfire_command(options, device_id, response, <<>>)
+    else
+      error -> error
+    end
   end
 
   def send_desfire_command(options, device_id, cla, ins, p1, p2, data, le) do
-    {:ok, response} = in_data_exchange(options, device_id, cla, ins <> p1 <> p2 <> byte_size(data) <> data <> le)
-    process_desfire_command(options, device_id, response, <<>>)
+    with {:ok, response} <- in_data_exchange(options, device_id, cla, ins <> p1 <> p2 <> byte_size(data) <> data <> le) do
+      process_desfire_command(options, device_id, response, <<>>)
+    else
+      error -> error
+    end
   end
 
   defp process_desfire_command(options, device_id, apdu, acc) do
@@ -250,6 +256,7 @@ defmodule PN532.Connection.Uart do
         process_desfire_command(options, device_id, response, acc <> data)
       {:complete, data} ->
         {:ok, acc <> data}
+      error -> error
     end
   end
 end

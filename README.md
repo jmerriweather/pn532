@@ -117,16 +117,20 @@ defmodule CardService.CardDetector do
   # this is the default access key for mifare
   @default_keys [<<0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF>>]
 
+  # iterate over the detected cards
   def detect_cards(client, data, cards, key) do
     detect_cards(client, data, cards, key, [])
   end
 
+  # We only care about mifare cards which have a tg and nfcid field
   def detect_cards(client, data, [%{tg: _target_number, nfcid: _identifier} = card | rest], key, acc) do
+    # attempt to authenticate the card
     with {:ok, authenticated_card, new_client, new_data} <- authenticate_card(client, data, card, key) do
+      # Accumulate our detected cards with the authenticated result
       detect_cards(new_client, new_data, rest, key, [authenticated_card | acc])
     else
       {:error, message, result, new_client, new_data} ->
-        Logger.error("Error occured authenticating card: #{inspect message}")
+        Logger.error("Error occurred authenticating card: #{inspect message}")
         detect_cards(new_client, new_data, rest, key, [result | acc])
     end
   end
@@ -139,21 +143,29 @@ defmodule CardService.CardDetector do
     acc
   end
 
+  # Attempt to authenticate card
   def authenticate_card(client, data, %{tg: target_number, nfcid: identifier} = card, key) do
     Logger.info("About to try authenticate key: #{inspect key}")
+    # To re-authenticate a card we need to first deselect then select
     with :ok <- client.deselect(data, target_number),
          :ok <- client.select(data, target_number),
          :ok <- client.authenticate(data, target_number, 1, :key_a, key, identifier) do
       result =
+        # Once we have successfully authenticated the card, get the card token stored locally
         with {:load_secure_code, {:ok, user_token}} <- {:load_secure_code, CardService.get_card_token(identifier)},
+              # Get the token stored on the card
              {:read_secure_code, {:ok, secure_code}} <- {:read_secure_code, client.read(data, target_number, 1)},
+              # Compare the token stored locally and the token stored on the card
              {:verify_secure_code, {true, ^user_token, ^secure_code}} <- {:verify_secure_code, {user_token === secure_code, user_token, secure_code}} do
 
+        # Update the card with the fact that it is authenticated, store the authenticated key used and
+        # the token that was stored on the card
         card = card
         |> Map.put(:authenticated, :success)
         |> Map.put(:key, key)
         |> Map.put(:access_code, secure_code)
 
+        # Get user associated with the card and add the user to the card
         with {:ok, user} <- CardService.get_card_user(identifier) do
           Map.put(card, :user, user)
         else
@@ -162,13 +174,13 @@ defmodule CardService.CardDetector do
         end
       else
         {:load_secure_code, error} ->
-          Logger.error("Error occured loading secure code: #{inspect error}")
+          Logger.error("Error occurred loading secure code: #{inspect error}")
           card
           |> Map.put(:authenticated, :failure)
           |> Map.put(:key, key)
           |> Map.put(:error, error)
         {:read_secure_code, error} ->
-          Logger.error("Error occured reading secure code on card: #{inspect error}")
+          Logger.error("Error occurred reading secure code on card: #{inspect error}")
           card
           |> Map.put(:authenticated, :failure)
           |> Map.put(:key, key)
@@ -180,7 +192,7 @@ defmodule CardService.CardDetector do
           |> Map.put(:key, key)
           |> Map.put(:error, :secure_code_invalid)
         {:error, error} ->
-          Logger.error("Error occured reading access code: #{inspect error}")
+          Logger.error("Error occurred reading access code: #{inspect error}")
           card
           |> Map.put(:authenticated, :failure)
           |> Map.put(:error, error)
@@ -188,16 +200,18 @@ defmodule CardService.CardDetector do
 
       authenticate_card(result, client, data)
     else
+      # If mifare authentication failed using the stored key, use the default mifare key
       {:error, {:mifare_authentication_error, _}} ->
         authenticate_card_defaults(client, data, card, @default_keys)
       {:error, error} ->
-        Logger.error("Error occured authenticating card: #{inspect error}")
+        Logger.error("Error occurred authenticating card: #{inspect error}")
         card
         |> Map.put(:authenticated, :failure)
         |> Map.put(:error, error)
         |> authenticate_card(client, data)
     end
   end
+
 
   defp authenticate_card_defaults(client, data, %{tg: target_number, nfcid: identifier} = card, [first_key | rest]) do
     Logger.info("About to try default authenticate key: #{inspect first_key}")
@@ -212,7 +226,7 @@ defmodule CardService.CardDetector do
       {:error, {:mifare_authentication_error, _}} ->
         authenticate_card_defaults(client, data, card, rest)
       {:error, error} ->
-        Logger.error("Error occured authenticating card: #{inspect error}")
+        Logger.error("Error occurred authenticating card: #{inspect error}")
         card
         |> Map.put(:authenticated, :failure)
         |> Map.put(:error, error)
