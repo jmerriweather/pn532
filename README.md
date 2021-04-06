@@ -212,7 +212,15 @@ defmodule CardService.CardDetector do
     end
   end
 
+  defp authenticate_card(%{error: message} = result, client, data) do
+    {:error, message, result, client, data}
+  end
 
+  defp authenticate_card(result, client, data) do
+    {:ok, result, client, data}
+  end
+
+  # Authenticate using default key
   defp authenticate_card_defaults(client, data, %{tg: target_number, nfcid: identifier} = card, [first_key | rest]) do
     Logger.info("About to try default authenticate key: #{inspect first_key}")
     with  :ok <- client.deselect(data, target_number),
@@ -234,19 +242,12 @@ defmodule CardService.CardDetector do
     end
   end
 
+  # ignore cards we are not interested in
   defp authenticate_card_defaults(client, data, card, []) do
     card
     |> Map.put(:authenticated, :failure)
     |> Map.put(:error, :unknown_key_a)
     |> authenticate_card(client, data)
-  end
-
-  defp authenticate_card(%{error: message} = result, client, data) do
-    {:error, message, result, client, data}
-  end
-
-  defp authenticate_card(result, client, data) do
-    {:ok, result, client, data}
   end
 end
 ```
