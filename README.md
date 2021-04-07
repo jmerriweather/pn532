@@ -252,6 +252,30 @@ defmodule CardService.CardDetector do
 end
 ```
 
+### Add configuration to your config.exs, if using Nerves you'll want to put different config for host or target
+
+In target.exs you could have the following
+
+```elixir
+config :card_service, :config,
+  uart_port: "/dev/ttyAMA0"
+```
+
+In Linux host you might have the following in your host.exs:
+
+```elixir
+config :card_service, :config,
+  uart_port: "/dev/ttyS7"
+```
+
+In Windows host you might have the following in your host.exs:
+
+```elixir
+config :card_service, :config,
+  uart_port: "/dev/COM2"
+```
+
+### Add PN532 Supervisor to you application Supervisor
 
 ```elixir
 defmodule CardService.Supervisor do
