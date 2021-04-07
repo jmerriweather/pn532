@@ -272,7 +272,7 @@ In Windows host you might have the following in your host.exs:
 
 ```elixir
 config :card_service, :config,
-  uart_port: "/dev/COM2"
+  uart_port: "COM2"
 ```
 
 ### Add PN532 Supervisor to you application Supervisor
