@@ -128,6 +128,33 @@ defmodule PN532.Connection.Uart do
     end
   end
 
+  def parse_general_status(<<err::binary-size(1), field::binary-size(1), target_number::integer, targets::binary>>) do
+    targets_size = byte_size(targets)
+    sam = binary_part(targets, targets_size - 1, 1)
+    just_targets = binary_part(targets, 0, targets_size - 1)
+    targets = case just_targets do
+      <<target::integer, reception_bitrate::binary-size(1), transmission_bitrate::binary-size(1), modulation_type::binary-size(1)>> ->
+        %{target: target, reception_bitrate: get_bitrate(reception_bitrate), transmission_bitrate: get_bitrate(transmission_bitrate), modulation_type: get_modulation_type(modulation_type)}
+      <<target1::integer, reception_bitrate1::binary-size(1), transmission_bitrate1::binary-size(1), modulation_type1::binary-size(1),
+        target2::integer, reception_bitrate2::binary-size(1), transmission_bitrate2::binary-size(1), modulation_type2::binary-size(1)>> ->
+          [
+            %{target: target1, reception_bitrate: get_bitrate(reception_bitrate1), transmission_bitrate: get_bitrate(transmission_bitrate1), modulation_type: get_modulation_type(modulation_type1)},
+            %{target: target2, reception_bitrate: get_bitrate(reception_bitrate2), transmission_bitrate: get_bitrate(transmission_bitrate2), modulation_type: get_modulation_type(modulation_type2)}
+          ]
+      _ ->
+        []
+    end
+
+    Logger.debug("Field: #{inspect field}")
+    %{
+      error: get_error(err),
+      field_active: (if field == <<0x01>>, do: true, else: false),
+      target_number: target_number,
+      targets: targets,
+      sam: sam
+    }
+  end
+
   def set_serial_baud_rate(%{uart_pid: uart_pid, read_timeout: read_timeout}, baud_rate) do
     with {:ok, baudrate_byte} <- get_baud_rate(baud_rate) do
       command = <<0x10>> <> baudrate_byte

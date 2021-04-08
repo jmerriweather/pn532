@@ -261,14 +261,14 @@ config :card_service, :config,
   uart_port: "/dev/ttyAMA0"
 ```
 
-In Linux host you might have the following in your host.exs:
+In a Linux host you might have the following in your host.exs:
 
 ```elixir
 config :card_service, :config,
   uart_port: "/dev/ttyS7"
 ```
 
-In Windows host you might have the following in your host.exs:
+In a Windows host you might have the following in your host.exs:
 
 ```elixir
 config :card_service, :config,
