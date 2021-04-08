@@ -57,7 +57,8 @@ defmodule Pn532.MixProject do
       {:circuits_uart, "~> 1.4"},
       {:gen_state_machine, "~> 3.0"},
       {:earmark, "~> 1.4", only: :dev, runtime: false},
-      {:ex_doc, "~> 0.24", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
+      {:version_tasks, "~> 0.12.0", only: :dev, runtime: false}
     ]
   end
 end
