@@ -1,5 +1,7 @@
 # PN532
 
+[![Hex pm](http://img.shields.io/hexpm/v/pn532.svg?style=flat)](https://hex.pm/packages/pn532)
+
 ## Hardware
 
 Any PN532 board should work as long as it supports UART.
