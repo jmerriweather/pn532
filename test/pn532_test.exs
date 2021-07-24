@@ -1,14 +1,14 @@
 defmodule Pn532Test do
   use ExUnit.Case, async: false
 
-  @test_uart "/dev/ttyS3"
+  @test_uart "COM4"
 
   setup_all do
     # start mifare client genserver
     start_result = PN532.Supervisor.start_link([%{target_type: :iso_14443_type_a}])
 
     #open uart
-    open_result = PN532.Client.Server.open(@test_uart)
+    open_result = PN532.Client.open(@test_uart)
 
     # on_exit fn ->
     #   MifareClientTest.close(pid)
